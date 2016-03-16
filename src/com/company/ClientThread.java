@@ -53,10 +53,9 @@ public class ClientThread implements Runnable {
                 String message = in.readLine();
                 for (PrintWriter writer : outputStreams){
                     writer.format("MESSAGE %s: %s\r\n", userName, message);
-                    System.out.println("Message: " + message);
+                    System.out.println("Message: \r\n" + message);
 
                     //out.write(userName.substring(5) + ": " + message + "\r\n");
-                    out.flush();
 
                     // TODO kanske behövs ändra.
                     if (message.matches("!help")) {
@@ -64,23 +63,21 @@ public class ClientThread implements Runnable {
                                 "!help - command list\r\n" +
                                 "!nickedit - change username\r\n" +
                                 "!quit - disconnect from the server\r\n");
-                        out.flush();
+
                     }
 
                     if (message.matches("!nickedit")) {
                         out.write("Type 'NICK namehere' to change username\r\n");
-                        out.flush();
                         userName = in.readLine();
 
                         if (userName.startsWith("NICK ")) {
                             out.write("Username changed to: " + userName.substring(5) + "\r\n");
-                            out.flush();
+
                         } else {
                             out.write("Error: NICK, try 'NICK namehere'\r\n");
-                            out.flush();
+
                         }
                     }
-
                     if (message.matches("!quit")) {
                         client.close();
                     }
