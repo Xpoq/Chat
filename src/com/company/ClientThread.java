@@ -1,74 +1,64 @@
 package com.company;
 
-/**
- * Created by Jasmin on 2016-02-16.
- */
-
 import java.io.*;
 import java.net.*;
 import java.util.*;
 
 public class ClientThread implements Runnable {
 
-    // hantering av användarnamn
-    Vector<String> users = new Vector<String>();
     Socket client;
     String clientId = "";
-    private InputStream in;
-    private OutputStream out;
-    private Set<OutputStream> outputStreams = new HashSet<OutputStream>();
+    private String userName;
+    private BufferedReader in;
+    private PrintWriter out;
+    private static HashSet<String> names = new HashSet<>();
+    private static HashSet<PrintWriter> outputStreams = new HashSet<>();
     public ClientThread(Socket socket) {
         this.client = socket;
     }
-    /*
-    void sendAll(String message) {
-        synchronized (outputStreams) {
-            for (Enumeration e = getOutputStreams(); e.hasMoreElements();){
-            }
-        }
-    }
-    */
+
     @Override
     public void run() {
         try {
             clientId = client.getRemoteSocketAddress().toString();
 
-            BufferedReader in = new BufferedReader(
-                    new InputStreamReader(client.getInputStream(), "UTF-8"));
-            BufferedWriter out = new BufferedWriter(
-                    new OutputStreamWriter(client.getOutputStream(), "UTF-8"));
-            //outputStreams.add(out);
+            in = new BufferedReader(new InputStreamReader(
+                    client.getInputStream(), "UTF-8"));
+            out = new PrintWriter(new OutputStreamWriter(
+                    client.getOutputStream(), "UTF-8"), true);
 
             // TODO eventuellt byta hur username hanteras.. för att undvika 'NICK användarnamn'
-            String userName;
             while (true) {
-                out.write("NICK?\r\n");
-                out.flush();
+                out.format("NICK?\r\n");
                 userName = in.readLine();
-                users.add(userName);
-                if (userName.startsWith("NICK ")) {
-                    out.write("Welcome " + userName.substring(5) + "!\r\n");
-                    out.flush();
-                    break;
-
-                } else {
-                    out.write("Error: NICK, try 'NICK namehere'\r\n");
-                    out.flush();
+                if (userName == null) {
+                    return;
                 }
+                if (!userName.startsWith("NICK ")) {
+                    continue;
+                }
+                userName = userName.substring(5);
+                synchronized (names) {
+                    if (!names.contains(userName)) {
+                        names.add(userName);
+                        break;
+                    }
+                }
+                // Name taken
+                out.format("ERROR nick already taken\r\n");
             }
-
             while (true) {
-                if (userName.startsWith("NICK ")) {
-                    /*int c;
-                    while ((c = in.read()) > 0) {
-                        for (OutputStream o : outputStreams){
-                            o.write(c);
-                        }
-                    }*/
-                    String message = in.readLine();
-                    out.write(userName.substring(5) + ": " + message + "\r\n");
+                //if (userName.startsWith("NICK ")) {
+
+                String message = in.readLine();
+                for (PrintWriter writer : outputStreams){
+                    writer.format("MESSAGE %s: %s\r\n", userName, message);
+                    System.out.println("Message: " + message);
+
+                    //out.write(userName.substring(5) + ": " + message + "\r\n");
                     out.flush();
 
+                    // TODO kanske behövs ändra.
                     if (message.matches("!help")) {
                         out.write("Commands: \r\n" +
                                 "!help - command list\r\n" +
@@ -78,11 +68,9 @@ public class ClientThread implements Runnable {
                     }
 
                     if (message.matches("!nickedit")) {
-                        users.remove(userName);
                         out.write("Type 'NICK namehere' to change username\r\n");
                         out.flush();
                         userName = in.readLine();
-                        users.add(userName);
 
                         if (userName.startsWith("NICK ")) {
                             out.write("Username changed to: " + userName.substring(5) + "\r\n");
@@ -96,6 +84,7 @@ public class ClientThread implements Runnable {
                     if (message.matches("!quit")) {
                         client.close();
                     }
+
                 }
             }
 
