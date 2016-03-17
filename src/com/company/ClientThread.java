@@ -44,56 +44,73 @@ public class ClientThread implements Runnable {
                         break;
                     }
                 }
-                // Name taken
-                out.format("ERROR nick already taken\r\n");
+                out.format("ERROR: nick already taken\r\n");
             }
+            out.format("NICK OK\r\n");
+            outputStreams.add(out);
+
             while (true) {
-                //if (userName.startsWith("NICK ")) {
-
                 String message = in.readLine();
-                for (PrintWriter writer : outputStreams){
-                    writer.format("MESSAGE %s: %s\r\n", userName, message);
-                    System.out.println("Message: \r\n" + message);
-
-                    //out.write(userName.substring(5) + ": " + message + "\r\n");
+                for (PrintWriter type : outputStreams){
+                    type.format("MESSAGE %s: %s\r\n", userName, message);
 
                     // TODO kanske behövs ändra.
                     if (message.matches("!help")) {
-                        out.write("Commands: \r\n" +
+                        out.format("Commands: \r\n" +
                                 "!help - command list\r\n" +
                                 "!nickedit - change username\r\n" +
                                 "!quit - disconnect from the server\r\n");
-
                     }
 
+                    // TODO kan behöva förkorta/ändra för att unvika dubbel kod.
                     if (message.matches("!nickedit")) {
-                        out.write("Type 'NICK namehere' to change username\r\n");
-                        userName = in.readLine();
+                        while (true) {
+                            out.format("Type 'NICK namehere' to change username\r\n");
+                            userName = in.readLine();
 
-                        if (userName.startsWith("NICK ")) {
-                            out.write("Username changed to: " + userName.substring(5) + "\r\n");
-
-                        } else {
-                            out.write("Error: NICK, try 'NICK namehere'\r\n");
-
+                            if (userName == null) {
+                                return;
+                            }
+                            if (!userName.startsWith("NICK ")) {
+                                continue;
+                            }
+                            userName = userName.substring(5);
+                            synchronized (names) {
+                                if (!names.contains(userName)) {
+                                    names.add(userName);
+                                    break;
+                                }
+                            }
+                            out.format("ERROR: nick already taken\r\n");
                         }
+                        out.format("Username changed to: " + userName + "\r\n");
+
                     }
+                    // TODO fixa hur det hanteras.. så användare tas bort som finally blocket
                     if (message.matches("!quit")) {
                         client.close();
                     }
-
                 }
             }
-
         } catch (IOException e) {
             e.printStackTrace();
         } finally {
+            if (out != null) {
+                outputStreams.remove(out);
+            }
+            if (userName != null) {
+                names.remove(userName);
+
+                for (PrintWriter type : outputStreams) {
+                    type.format("QUIT %s\r\n", userName);
+                }
+            }
             try {
                 client.close();
                 System.out.printf("Client disconnected: %s\n", clientId);
 
             } catch (IOException e){
-                System.out.println("Error: close\r\n");
+                System.out.println("ERROR: close\r\n");
             }
         }
     }
