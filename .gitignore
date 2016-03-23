@@ -51,3 +51,5 @@ Chat.iml
 Chat.iml
 *.iml
 *.xml
+.idea/misc.xml
+.idea/workspace.xml
